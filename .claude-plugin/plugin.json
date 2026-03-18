@@ -1,0 +1,12 @@
+{
+  "name": "aidlc",
+  "description": "AI-DLC based development workflow skills: requirement definition, system architecture, PR-scoped subtask management, TDD implementation, and PR creation with deploy-granularity separation",
+  "version": "1.0.0",
+  "author": {
+    "name": "tatematsu-k"
+  },
+  "homepage": "https://github.com/tatematsu-k/ai-development-skills",
+  "repository": "https://github.com/tatematsu-k/ai-development-skills",
+  "license": "MIT",
+  "keywords": ["aidlc", "workflow", "pr-management", "task-management", "tdd", "architecture"]
+}

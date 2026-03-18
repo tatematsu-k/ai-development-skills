@@ -3,7 +3,11 @@
 Thumbs.db
 
 # Claude Code (project-specific settings should not be shared)
-.claude/settings.local.json
+.claude/
 
 # AI-DLC working documents (generated per-project, not part of the skill definitions)
 aidlc-docs/
+
+# Editor / IDE
+.specstory/
+.cursorindexingignore

@@ -13,38 +13,45 @@ AWS [AI-DLC (AI-Driven Development Life Cycle)](https://aws.amazon.com/blogs/dev
 
 ## インストール
 
-### 方法1: 対象プロジェクトにコピー (推奨)
+### 方法1: Claude Code プラグインとしてインストール (推奨)
 
-スキルを使いたいプロジェクトの `.claude/` ディレクトリにコピーします。
+Claude Code の `/plugin` コマンドでインストールできます。
+
+```bash
+# Step 1: マーケットプレースを追加 (初回のみ)
+/plugin marketplace add tatematsu-k/ai-development-skills
+
+# Step 2: プラグインをインストール
+/plugin install aidlc
+```
+
+または、GitHub リポジトリから直接インストール:
+
+```bash
+/plugin install tatematsu-k/ai-development-skills
+```
+
+### 方法2: 手動コピー
+
+プラグインシステムを使わず、対象プロジェクトに直接コピーする場合:
 
 ```bash
 # このリポジトリをクローン
-git clone <this-repo-url> /tmp/ai-development-skills
+git clone https://github.com/tatematsu-k/ai-development-skills.git /tmp/ai-development-skills
 
 # 対象プロジェクトの .claude/ にスキルとコマンドをコピー
-cp -r /tmp/ai-development-skills/.claude/skills/ /path/to/your-project/.claude/skills/
-cp -r /tmp/ai-development-skills/.claude/commands/ /path/to/your-project/.claude/commands/
+mkdir -p /path/to/your-project/.claude/skills /path/to/your-project/.claude/commands
+cp -r /tmp/ai-development-skills/skills/* /path/to/your-project/.claude/skills/
+cp /tmp/ai-development-skills/commands/* /path/to/your-project/.claude/commands/
 
-# CLAUDE.md のルールを対象プロジェクトに追記 (既存の CLAUDE.md がある場合)
+# CLAUDE.md のルールを対象プロジェクトに追記
 cat /tmp/ai-development-skills/CLAUDE.md >> /path/to/your-project/CLAUDE.md
 ```
 
-既存の `CLAUDE.md` がない場合はそのままコピー:
+### アンインストール
 
 ```bash
-cp /tmp/ai-development-skills/CLAUDE.md /path/to/your-project/CLAUDE.md
-```
-
-### 方法2: シンボリックリンク
-
-複数プロジェクトで共有したい場合:
-
-```bash
-# スキルをリンク
-ln -s /path/to/ai-development-skills/.claude/skills/* /path/to/your-project/.claude/skills/
-
-# コマンドをリンク
-ln -s /path/to/ai-development-skills/.claude/commands/* /path/to/your-project/.claude/commands/
+/plugin uninstall aidlc
 ```
 
 ### インストール確認
