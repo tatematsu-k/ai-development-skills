@@ -15,10 +15,12 @@ AWS [AI-DLC (AI-Driven Development Life Cycle)](https://aws.amazon.com/blogs/dev
 
 ### 方法1: Claude Code プラグインとしてインストール (推奨)
 
-Claude Code で以下を実行:
+```bash
+# Step 1: マーケットプレースを追加 (初回のみ)
+/plugin marketplace add tatematsu-k/ai-development-skills
 
-```
-/plugin install tatematsu-k/ai-development-skills
+# Step 2: プラグインをインストール
+/plugin install aidlc@aidlc-skills
 ```
 
 ### 方法2: 手動コピー
@@ -31,8 +33,8 @@ git clone https://github.com/tatematsu-k/ai-development-skills.git /tmp/ai-devel
 
 # 対象プロジェクトの .claude/ にスキルとコマンドをコピー
 mkdir -p /path/to/your-project/.claude/skills /path/to/your-project/.claude/commands
-cp -r /tmp/ai-development-skills/skills/* /path/to/your-project/.claude/skills/
-cp /tmp/ai-development-skills/commands/* /path/to/your-project/.claude/commands/
+cp -r /tmp/ai-development-skills/plugins/aidlc/skills/* /path/to/your-project/.claude/skills/
+cp /tmp/ai-development-skills/plugins/aidlc/commands/* /path/to/your-project/.claude/commands/
 
 # CLAUDE.md のルールを対象プロジェクトに追記
 cat /tmp/ai-development-skills/CLAUDE.md >> /path/to/your-project/CLAUDE.md

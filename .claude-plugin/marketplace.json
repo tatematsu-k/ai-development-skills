@@ -1,0 +1,15 @@
+{
+  "name": "aidlc-skills",
+  "description": "AI-DLC based development workflow skills for Claude Code",
+  "owner": {
+    "name": "tatematsu-k"
+  },
+  "plugins": [
+    {
+      "name": "aidlc",
+      "source": "./plugins/aidlc",
+      "description": "AI-DLC workflow: requirement definition, system architecture, PR-scoped subtask management, TDD implementation, and PR creation with deploy-granularity separation",
+      "version": "1.0.0"
+    }
+  ]
+}
