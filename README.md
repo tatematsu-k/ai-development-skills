@@ -15,19 +15,9 @@ AWS [AI-DLC (AI-Driven Development Life Cycle)](https://aws.amazon.com/blogs/dev
 
 ### 方法1: Claude Code プラグインとしてインストール (推奨)
 
-Claude Code の `/plugin` コマンドでインストールできます。
+Claude Code で以下を実行:
 
-```bash
-# Step 1: マーケットプレースを追加 (初回のみ)
-/plugin marketplace add tatematsu-k/ai-development-skills
-
-# Step 2: プラグインをインストール
-/plugin install aidlc
 ```
-
-または、GitHub リポジトリから直接インストール:
-
-```bash
 /plugin install tatematsu-k/ai-development-skills
 ```
 
