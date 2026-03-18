@@ -1,0 +1,117 @@
+---
+name: aidlc-workflow
+description: "AI-DLC (AI-Driven Development Life Cycle) ベースの開発ワークフロー。要件定義→設計→レビュー→サブタスク分割→実装→PR作成の全フェーズを管理する。新機能開発・改修作業の開始時に必ず使用すること。"
+---
+
+# AI-DLC ベース開発ワークフロー
+
+AWS AI-DLC と superpowers の手法を組み合わせた、人間-AI協調型の開発ワークフロー。
+
+**起動トリガー:** 新機能開発・改修作業の開始時、または「AI-DLCで進めて」と指示された時。
+
+## フェーズ概要
+
+```
+┌─────────────────────────────────────────────────────┐
+│ Phase 1: Inception (要件定義 + 設計)                  │
+│  ├─ Stage 1: 要件定義 (requirement-definition)       │
+│  ├─ Stage 2: システム設計 (system-architecture)       │
+│  └─ Stage 3: 人によるレビュー (Human Review Gate)     │
+├─────────────────────────────────────────────────────┤
+│ Phase 2: Construction (実装)                         │
+│  ├─ Stage 4: サブタスク分割 (subtask-decomposition)   │
+│  ├─ Stage 5: 実装・テスト (implementation)            │
+│  └─ Stage 6: PR作成 (pr-creation)                    │
+├─────────────────────────────────────────────────────┤
+│ Phase 3: Operations (デプロイ・運用) ※将来拡張        │
+└─────────────────────────────────────────────────────┘
+```
+
+## ワークフロー詳細
+
+### Phase 1: Inception
+
+#### Stage 1: 要件定義
+
+**REQUIRED SKILL:** `aidlc:requirement-definition`
+
+- やりたいことの明確化
+- ユーザーとの対話による要件の深掘り
+- 成果物: 要件定義書 (`aidlc-docs/requirements/YYYY-MM-DD-<feature>.md`)
+
+#### Stage 2: システムアーキテクト設計
+
+**REQUIRED SKILL:** `aidlc:system-architecture`
+
+- API通信設計
+- シーケンス図の整理
+- コンポーネント間依存関係の明確化
+- デプロイ粒度の特定
+- 成果物: 設計書 (`aidlc-docs/designs/YYYY-MM-DD-<feature>.md`)
+
+#### Stage 3: 人によるレビュー (Human Review Gate)
+
+<HARD-GATE>
+Stage 2の成果物を人がレビューするまで、Phase 2に進んではならない。
+</HARD-GATE>
+
+以下のメッセージを表示して承認を待つ:
+
+> **設計レビュー待ち**
+>
+> 要件定義書: `aidlc-docs/requirements/YYYY-MM-DD-<feature>.md`
+> 設計書: `aidlc-docs/designs/YYYY-MM-DD-<feature>.md`
+>
+> 上記ドキュメントを確認して、フィードバックまたは承認をお願いします。
+> 修正がある場合はお知らせください。承認の場合は「OK」「進めて」等でお伝えください。
+
+### Phase 2: Construction
+
+#### Stage 4: サブタスク分割
+
+**REQUIRED SKILL:** `aidlc:subtask-decomposition`
+
+- 設計書をもとにPR単位のサブタスクに分割
+- タスク管理先の選択 (ローカルファイル or GitHub Issue)
+- 成果物: タスクリスト
+
+#### Stage 5: 実装・テスト
+
+**REQUIRED SKILL:** `aidlc:implementation`
+
+- サブタスク単位でのTDD実装
+- 意味のある単位でのコミット
+- スクリプト生成ファイルの分離コミット
+
+#### Stage 6: PR作成・タスク更新
+
+**REQUIRED SKILL:** `aidlc:pr-creation`
+
+- PRの作成
+- タスクステータスの更新
+- 次のサブタスクへの遷移
+
+## フェーズ遷移ルール
+
+- 各Stageは順序通りに実行する
+- Stage間の遷移時に必ずユーザーに報告する
+- Stage 3 (Human Review Gate) は明示的な承認なしにスキップ不可
+- Stage 5→6→5 のループはサブタスクの数だけ繰り返す
+
+## AI-DLC 基本原則
+
+1. **Plan-Verify-Generate**: AI が計画 → 人が検証 → AI が実行 → 人が確認
+2. **タスク分解**: 曖昧さのない、狭いスコープのタスクに分解する
+3. **既存パターンの踏襲**: 既存コードのパターンを参照し一貫性を保つ
+4. **コンテキスト管理**: 必要な情報のみをフォーカスして作業する
+5. **オーナーシップ**: エンジニアがコードの責任者。AIが生成したコードも理解し所有する
+
+## ディレクトリ構成
+
+```
+aidlc-docs/
+├── requirements/    # 要件定義書
+├── designs/         # 設計書 (API設計・シーケンス図)
+├── tasks/           # タスクリスト (ローカル管理の場合)
+└── audit.md         # 作業ログ
+```
