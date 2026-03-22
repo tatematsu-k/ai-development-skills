@@ -1,8 +1,12 @@
-# AI-DLC Development Skills
+# AI Development Skills
 
-このリポジトリは AI-DLC (AI-Driven Development Life Cycle) ベースの開発ワークフロースキルを提供します。
+このリポジトリは Claude Code 向けの開発ワークフロースキルを2つのプラグインとして提供します。
 
-## スキル一覧
+## プラグイン
+
+### aidlc — AI-DLC ワークフロー
+
+AI-DLC (AI-Driven Development Life Cycle) ベースの開発ワークフロー。
 
 | スキル | 用途 |
 |--------|------|
@@ -12,13 +16,45 @@
 | `aidlc:subtask-decomposition` | サブタスク分割 |
 | `aidlc:task-management` | タスク管理 (ローカル/GitHub Issue) |
 | `aidlc:pr-strategy` | PR分割戦略 |
-| `aidlc:implementation` | 実装・テスト |
-| `aidlc:pr-creation` | PR作成・タスク更新 |
+| `aidlc:implementation` | 実装・テスト (TDDワークフロー強化版) |
+| `aidlc:pr-creation` | PR作成・タスク更新 (検証ループ統合) |
 
-## コマンド
+**コマンド:** `/aidlc <やりたいこと>`, `/task-status`
 
-- `/aidlc <やりたいこと>` — AI-DLCワークフロー開始
-- `/task-status` — タスク進捗表示
+### ecc — Everything Claude Code
+
+[affaan-m/everything-claude-code](https://github.com/affaan-m/everything-claude-code) から取り込んだ、実戦で鍛えられたスキル・コマンド・エージェント。
+
+#### Skills (28個)
+
+| カテゴリ | スキル |
+|---------|--------|
+| 開発ワークフロー | `tdd-workflow`, `verification-loop`, `coding-standards`, `e2e-testing`, `eval-harness`, `security-review`, `strategic-compact`, `documentation-lookup`, `dmux-workflows`, `bun-runtime` |
+| バックエンド | `api-design`, `backend-patterns`, `mcp-server-patterns` |
+| フロントエンド | `frontend-patterns`, `frontend-slides`, `nextjs-turbopack` |
+| コンテンツ | `article-writing`, `content-engine`, `crosspost`, `investor-materials`, `investor-outreach`, `video-editing` |
+| リサーチ | `deep-research`, `market-research` |
+| 外部API | `claude-api`, `exa-search`, `fal-ai-media`, `x-api` |
+
+#### Commands (40個)
+
+| カテゴリ | コマンド |
+|---------|---------|
+| 開発 | `/build-fix`, `/code-review`, `/e2e`, `/tdd`, `/test-coverage`, `/quality-gate`, `/verify`, `/refactor-clean` |
+| 計画 | `/plan`, `/orchestrate`, `/devfleet` |
+| セッション | `/save-session`, `/resume-session`, `/sessions`, `/checkpoint`, `/aside` |
+| 学習 | `/learn`, `/learn-eval`, `/evolve`, `/instinct-export`, `/instinct-import`, `/instinct-status`, `/projects`, `/promote` |
+| メタ | `/context-budget`, `/model-route`, `/prompt-optimize`, `/harness-audit`, `/skill-create`, `/skill-health`, `/rules-distill` |
+| ドキュメント | `/docs`, `/update-docs`, `/update-codemaps` |
+| その他 | `/eval`, `/loop-start`, `/loop-status`, `/setup-pm`, `/pm2`, `/claw` |
+
+#### Agents (15個)
+
+| モデル | エージェント |
+|--------|------------|
+| opus | `architect`, `chief-of-staff`, `planner` |
+| sonnet | `build-error-resolver`, `code-reviewer`, `database-reviewer`, `docs-lookup`, `e2e-runner`, `harness-optimizer`, `loop-operator`, `refactor-cleaner`, `security-reviewer`, `tdd-guide`, `typescript-reviewer` |
+| haiku | `doc-updater` |
 
 ## 重要ルール
 

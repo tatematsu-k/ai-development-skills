@@ -10,6 +10,12 @@
       "source": "./plugins/aidlc",
       "description": "AI-DLC workflow: requirement definition, system architecture, PR-scoped subtask management, TDD implementation, and PR creation with deploy-granularity separation",
       "version": "1.0.0"
+    },
+    {
+      "name": "ecc",
+      "source": "./plugins/ecc",
+      "description": "Everything Claude Code: battle-tested agents, skills, commands for development workflows, content creation, research, and operations",
+      "version": "1.8.0"
     }
   ]
 }
