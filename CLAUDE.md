@@ -17,6 +17,15 @@
 | `aidlc:implementation` | 実装・テスト |
 | `aidlc:pr-creation` | PR作成・タスク更新 |
 
+## エージェント一覧
+
+| エージェント | 用途 | 主な活躍場面 |
+|-------------|------|-------------|
+| `architect` | アーキテクチャ設計・シーケンス設計・技術選定の妥当性検証 | system-architecture, 設計レビュー |
+| `security` | セキュリティ脆弱性評価・OWASP準拠チェック | 設計レビュー, 実装レビュー |
+| `test-qa` | テスト設計・エッジケース分析・重要処理のテスト品質担保 | implementation, バグ調査 |
+| `service-operator` | 既存機能の実現可能性評価・機能ギャップ分析 | requirement-definition, enhance-assessment |
+
 ## コマンド
 
 - `/aidlc <やりたいこと>` — AI-DLCワークフロー開始
