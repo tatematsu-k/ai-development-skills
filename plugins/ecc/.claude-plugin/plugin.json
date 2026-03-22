@@ -1,0 +1,25 @@
+{
+  "name": "ecc",
+  "description": "Everything Claude Code: Battle-tested agents, skills, hooks, and commands for software development, content creation, research, and operations. Originally from affaan-m/everything-claude-code.",
+  "version": "1.8.0",
+  "author": {
+    "name": "Affaan Mustafa",
+    "url": "https://github.com/affaan-m/everything-claude-code"
+  },
+  "homepage": "https://github.com/affaan-m/everything-claude-code",
+  "repository": "https://github.com/affaan-m/everything-claude-code",
+  "license": "MIT",
+  "keywords": [
+    "ecc",
+    "tdd",
+    "code-review",
+    "security",
+    "agents",
+    "orchestration",
+    "content",
+    "research",
+    "e2e-testing",
+    "eval-harness",
+    "session-management"
+  ]
+}
