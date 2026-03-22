@@ -1,6 +1,6 @@
 ---
 name: onboarding
-description: "リポジトリのオンボーディング。コードベースを解析し、ユーザーとの対話を通じてサービス概要・機能概要・セキュリティ概要・技術スタック・アーキテクチャ概要・開発者セットアップガイド・CLAUDE.md を生成する。"
+description: "リポジトリのオンボーディング。コードベースを解析し、ユーザーとの対話を通じてサービス概要・機能概要・技術スタック・アーキテクチャ概要・開発者セットアップガイド・CLAUDE.md を生成する。セキュリティ情報は各ドキュメント内のセクションとして記載する。"
 ---
 
 # リポジトリオンボーディング (Onboarding)
@@ -27,11 +27,6 @@ $OUTPUT_DIR/
 ├── features/
 │   ├── <feature-name-1>.md          # 各機能の詳細
 │   └── <feature-name-2>.md
-├── security.md                      # 概要 (セキュリティ方針 + 詳細へのリンク)
-├── security/
-│   ├── authentication.md            # 認証の詳細
-│   ├── authorization.md             # 認可の詳細
-│   └── data-protection.md           # データ保護の詳細
 ├── architecture.md                  # 概要 (構成図 + 詳細へのリンク)
 ├── architecture/
 │   ├── directory-structure.md        # ディレクトリ構成の詳細
@@ -43,6 +38,17 @@ $OUTPUT_DIR/
     ├── testing.md                   # テストの詳細
     └── troubleshooting.md           # トラブルシューティング集
 ```
+
+### セキュリティ情報の配置方針
+
+セキュリティは独立ドキュメントにせず、関連する各ドキュメントのセクションとして記載する:
+
+| セキュリティ観点 | 記載先 |
+|----------------|--------|
+| 認証・認可の方式 | `architecture.md` の「認証・認可」セクション |
+| シークレット管理・環境変数 | `development-guide.md` の「シークレット管理」セクション |
+| データ保護・暗号化 | `architecture.md` の「データ保護」セクション |
+| セキュリティ上の注意事項 | `development-guide.md` の「セキュリティ注意事項」セクション |
 
 ### サイズガイドライン
 
@@ -56,7 +62,7 @@ $OUTPUT_DIR/
 概要ファイルから詳細ファイルへのリンクは以下の形式で統一する:
 
 ```markdown
-> 詳細: [認証の詳細設計](./security/authentication.md)
+> 詳細: [ディレクトリ構成の詳細](./architecture/directory-structure.md)
 ```
 
 ## The Process
@@ -199,45 +205,7 @@ $OUTPUT_DIR/
 (この機能に関連するモデルの詳細)
 ```
 
-#### 4-3: セキュリティ概要
-
-**概要ファイル** (`$OUTPUT_DIR/security.md`):
-
-```markdown
-# [サービス名] セキュリティ概要
-
-## 1. 認証・認可
-- 認証方式: ...
-- 認可モデル: ...
-
-> 詳細: [認証の詳細](./security/authentication.md) | [認可の詳細](./security/authorization.md)
-
-## 2. データ保護
-- 暗号化: ...
-- 個人情報の取り扱い: ...
-
-> 詳細: [データ保護の詳細](./security/data-protection.md)
-
-## 3. シークレット管理
-- 環境変数: ...
-- シークレットストア: ...
-
-## 4. ネットワークセキュリティ
-- ...
-
-## 5. 監査・ログ
-- ...
-
-## 6. 既知のセキュリティ考慮事項
-- ...
-```
-
-**詳細ディレクトリ** (`$OUTPUT_DIR/security/`):
-- `authentication.md` — 認証フローの詳細、トークン管理等
-- `authorization.md` — 権限モデル、ロール定義の詳細
-- `data-protection.md` — 暗号化方式、PII取り扱いポリシーの詳細
-
-#### 4-4: アーキテクチャ概要
+#### 4-3: アーキテクチャ概要
 
 **概要ファイル** (`$OUTPUT_DIR/architecture.md`):
 
@@ -267,7 +235,15 @@ $OUTPUT_DIR/
 
 > 詳細: [デプロイ構成の詳細](./architecture/deployment.md)
 
-## 6. 外部連携
+## 6. 認証・認可
+- 認証方式: ...
+- 認可モデル: ...
+
+## 7. データ保護
+- 暗号化: ...
+- 個人情報の取り扱い: ...
+
+## 8. 外部連携
 | 連携先 | 方式 | 用途 |
 |--------|------|------|
 | ... | ... | ... |
@@ -278,7 +254,7 @@ $OUTPUT_DIR/
 - `data-flow.md` — シーケンス図、データフロー図の詳細
 - `deployment.md` — インフラ構成、CI/CDパイプラインの詳細
 
-#### 4-5: 開発者セットアップガイド
+#### 4-4: 開発者セットアップガイド
 
 **概要ファイル** (`$OUTPUT_DIR/development-guide.md`):
 
@@ -307,7 +283,14 @@ $OUTPUT_DIR/
 ## 6. ブランチ戦略
 - ...
 
-## 7. トラブルシューティング
+## 7. シークレット管理
+- 環境変数の管理方法: ...
+- シークレットストア: ...
+
+## 8. セキュリティ注意事項
+- 開発時に注意すべきセキュリティ事項
+
+## 9. トラブルシューティング
 
 > 詳細: [トラブルシューティング集](./development-guide/troubleshooting.md)
 ```
@@ -367,7 +350,7 @@ $OUTPUT_DIR/
 ```
 docs: add onboarding documents
 
-Generated: service-overview, features, security, architecture, development-guide
+Generated: service-overview, features, architecture, development-guide
 ```
 
 3. CLAUDE.md を更新した場合は別コミットにする
@@ -383,9 +366,8 @@ docs: add/update CLAUDE.md for AI-assisted development
 > **概要ドキュメント** (全体像の把握に使用):
 > - `$OUTPUT_DIR/service-overview.md`
 > - `$OUTPUT_DIR/features.md`
-> - `$OUTPUT_DIR/security.md`
-> - `$OUTPUT_DIR/architecture.md`
-> - `$OUTPUT_DIR/development-guide.md`
+> - `$OUTPUT_DIR/architecture.md` (認証・認可・データ保護を含む)
+> - `$OUTPUT_DIR/development-guide.md` (シークレット管理・セキュリティ注意事項を含む)
 >
 > **詳細ドキュメント** (必要時に参照):
 > - `$OUTPUT_DIR/<name>/` 配下に各トピックの詳細

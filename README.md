@@ -100,10 +100,20 @@ cat /tmp/ai-development-skills/CLAUDE.md >> /path/to/your-project/CLAUDE.md
 既存リポジトリを解析し、対話を通じて以下のドキュメントを生成します:
 - `docs/service-overview.md` — サービス概要
 - `docs/features.md` — 機能概要
-- `docs/security.md` — セキュリティ概要
-- `docs/architecture.md` — アーキテクチャ概要
-- `docs/development-guide.md` — 開発者セットアップガイド
+- `docs/architecture.md` — アーキテクチャ概要 (認証・認可・データ保護を含む)
+- `docs/development-guide.md` — 開発者セットアップガイド (シークレット管理・セキュリティ注意事項を含む)
 - `CLAUDE.md` — AI開発用プロジェクト設定 (既存がある場合は確認の上更新)
+
+### セキュリティ監査
+
+```
+/security-audit
+```
+
+OWASP Top 10 ベースでコードベースを走査し、脆弱性を検出します:
+- 深刻度別 (Critical/High/Medium/Low/Info) に分類
+- 該当箇所・リスク・修正提案を含むレポート生成
+- 検出後そのまま修正フローに移行可能
 
 ### タスク進捗の確認
 
@@ -208,6 +218,7 @@ aidlc-docs/
 | `implementation` | Construction | TDD実装・コミット |
 | `pr-creation` | Construction | PR作成・タスクステータス更新 |
 | `onboarding` | - | リポジトリ解析・基礎ドキュメント生成 |
+| `security-audit` | - | セキュリティ監査 (OWASP Top 10 ベース) |
 
 ## ベースとなった手法
 
