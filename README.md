@@ -225,7 +225,7 @@ plugins/
 └── ecc/                       # Everything Claude Code
     ├── .claude-plugin/
     │   └── plugin.json
-    ├── skills/                 # 28 skills
+    ├── skills/                 # 31 skills
     │   ├── api-design/
     │   ├── article-writing/
     │   ├── backend-patterns/
@@ -248,6 +248,9 @@ plugins/
     │   ├── market-research/
     │   ├── mcp-server-patterns/
     │   ├── nextjs-turbopack/
+    │   ├── rails-patterns/
+    │   ├── rails-security/
+    │   ├── rails-testing/
     │   ├── security-review/
     │   ├── strategic-compact/
     │   ├── tdd-workflow/
@@ -260,11 +263,13 @@ plugins/
     │   ├── checkpoint.md
     │   ├── ... (40 files)
     │   └── verify.md
-    └── agents/                 # 15 agents
+    └── agents/                 # 17 agents
         ├── architect.md
         ├── build-error-resolver.md
         ├── chief-of-staff.md
-        ├── ... (15 files)
+        ├── ... (17 files)
+        ├── rails-reviewer.md
+        ├── rails-build-resolver.md
         └── typescript-reviewer.md
 ```
 
@@ -284,6 +289,14 @@ plugins/
 | `documentation-lookup` | Context7 MCP による最新ドキュメント参照 |
 | `dmux-workflows` | dmux によるマルチエージェント並列オーケストレーション |
 | `bun-runtime` | Bun ランタイム: パッケージ管理・バンドル・テスト実行 |
+
+### Ruby on Rails
+
+| スキル | 説明 |
+|--------|------|
+| `rails-patterns` | Rails アーキテクチャ: Active Record, Concerns, Controller設計, Routing, Rails 8+ Defaults (Solid Trifecta, Kamal, Hotwire). 公式ガイド + DHH + コアコミッター (Aaron Patterson, Eileen Uchitelle, Jean Boussier, Xavier Noria) 準拠 |
+| `rails-testing` | Rails テスト: Minitest, Fixtures, Integration Tests, TDD. t-wada の質とスピード + テストピラミッド + DHH の System Tests 廃止方針準拠 |
+| `rails-security` | Rails セキュリティ: CSRF, SQL Injection, XSS, Session, Credentials, Rate Limiting (Rails 8+), CSP |
 
 ### バックエンド
 
@@ -346,6 +359,8 @@ plugins/
 | `docs-lookup` | sonnet | Context7 MCP による最新ドキュメント検索 |
 | `harness-optimizer` | sonnet | Claude Code 設定の最適化分析 |
 | `loop-operator` | sonnet | 自律ループの監視・ストール検出・介入 |
+| `rails-reviewer` | sonnet | Rails コードレビュー: Rails Way 準拠、N+1検出、セキュリティ、規約チェック |
+| `rails-build-resolver` | sonnet | Rails ビルド・マイグレーション・ランタイムエラーの最小限修正 |
 | `doc-updater` | haiku | ドキュメント・コードマップの自動更新 |
 
 ## ベースとなった手法

@@ -1,0 +1,406 @@
+---
+name: rails-patterns
+description: "Ruby on Rails architecture patterns and conventions based on official Rails guides, the Rails Doctrine, and core team recommendations. Covers Active Record, controllers, routing, concerns, caching, background jobs, and Rails 8+ defaults."
+origin: custom
+metadata:
+  filePattern:
+    - "**/*.rb"
+    - "**/Gemfile"
+    - "**/config/routes.rb"
+    - "**/config/database.yml"
+    - "**/db/migrate/**"
+    - "**/app/models/**"
+    - "**/app/controllers/**"
+  bashPattern:
+    - "rails|rake|bundle|bin/rails|bin/rake"
+---
+
+# Rails Patterns & Conventions
+
+Based on: [Rails Guides](https://guides.rubyonrails.org/), [Rails Doctrine](https://rubyonrails.org/doctrine), DHH, and Rails core team members.
+
+## When to Activate
+
+- Writing or reviewing Ruby on Rails application code
+- Designing models, controllers, routes, or database schema
+- Working with Active Record associations, validations, callbacks
+- Configuring Rails 8+ applications
+
+## The Rails Doctrine — Core Principles
+
+1. **Convention over Configuration** — 標準的な判断を繰り返さない
+2. **The Menu is Omakase** — Rails が選んだスタックを信頼する
+3. **No One Paradigm** — ビューは手続き的、モデルはOO、必要に応じて関数的
+4. **Provide Sharp Knives** — 開発者を信頼し強力なツールを提供する
+5. **Value Integrated Systems** — マイクロサービスよりモノリス
+6. **Progress over Stability** — 後方互換性よりフレームワークの進化
+
+## Active Record
+
+### Naming Conventions
+
+| Ruby | Database |
+|------|----------|
+| Model: `BookClub` (singular CamelCase) | Table: `book_clubs` (plural snake_case) |
+| Foreign key: `author_id` | Column: `author_id` |
+| Primary key: `id` (bigint) | Auto-created |
+| Join table: `authors_books` | Alphabetical order |
+
+**Reserved columns:** `type` (STI), `lock_version` (optimistic locking), `*_count` (counter cache), `created_at`/`updated_at` (timestamps)
+
+### Migrations
+
+**常に `change` メソッドを使用**（auto-reversible）:
+
+```ruby
+class CreateProducts < ActiveRecord::Migration[8.1]
+  def change
+    create_table :products do |t|
+      t.string :name, null: false
+      t.references :author, foreign_key: true
+      t.timestamps
+    end
+    add_index :products, :part_number, unique: true
+  end
+end
+```
+
+**Rules:**
+- コミット済みのマイグレーションは編集しない — 新しいマイグレーションを作成する
+- 外部キーには必ず `foreign_key: true` を追加する
+- 外部キーカラムには必ずインデックスを追加する
+- データマイグレーションはマイグレーションファイルに書かない
+
+### Validations
+
+```ruby
+validates :name, presence: true
+validates :email, uniqueness: { case_sensitive: false }
+validates :bio, length: { maximum: 500 }
+validates :age, numericality: { only_integer: true }
+validates :size, inclusion: { in: %w[S M L] }
+validates :end_date, comparison: { greater_than: :start_date }
+```
+
+**Critical:** モデルの `uniqueness` バリデーションだけでは不十分。必ずDBレベルの一意インデックスも追加する（レースコンディション対策）。
+
+### Associations
+
+| 関係 | 宣言 | FK の場所 |
+|------|------|----------|
+| 1対多 | `has_many` / `belongs_to` | 子テーブル |
+| 1対1 | `has_one` / `belongs_to` | 子テーブル |
+| 多対多（JoinModel付き） | `has_many :through` | Joinテーブル |
+| 多対多（シンプル） | `has_and_belongs_to_many` | Joinテーブル |
+| ポリモーフィック | `belongs_to :imageable, polymorphic: true` | 子テーブル |
+
+**Rules:**
+- Join モデルに属性が必要なら `has_many :through` を使う（`has_and_belongs_to_many` ではなく）
+- 必ず `dependent:` を指定する（孤立レコード防止）
+- `belongs_to` は常に単数、`has_many` は常に複数
+
+### N+1 Prevention (Eileen Uchitelle / Aaron Patterson)
+
+```ruby
+# BAD — N+1
+books = Book.limit(10)
+books.each { |b| b.author.name }  # 11 queries
+
+# GOOD — eager loading
+books = Book.includes(:author).limit(10)  # 2 queries
+
+# GOOD — strict loading (Rails 6.1+, Eileen Uchitelle)
+user = User.strict_loading.first
+user.address  # raises StrictLoadingViolationError
+```
+
+**推奨:** `config.active_record.strict_loading_by_default = true` を開発環境で有効にする
+
+**大量データの処理:**
+```ruby
+Customer.find_each(batch_size: 5000) { |c| process(c) }  # NOT Model.all.each
+```
+
+**効率的なデータ取得:**
+```ruby
+User.pluck(:email)       # Array を返す（AR オブジェクトなし）
+User.where(...).exists?  # boolean のみ
+```
+
+## Controllers
+
+### DHH の Controller 設計哲学
+
+**「非CRUDアクションをコントローラに追加しない — 新しいコントローラを作れ」**
+
+```ruby
+# BAD — カスタムアクション
+class InboxesController < ApplicationController
+  def pendings; end
+  def archive; end
+end
+
+# GOOD — 新しいコントローラ (DHH way)
+class Inboxes::PendingsController < ApplicationController
+  def index; end
+end
+
+class Inboxes::ArchivesController < ApplicationController
+  def create; end
+end
+```
+
+すべてのコントローラは標準CRUD（index, show, new, edit, create, update, destroy）のみ。
+
+### Strong Parameters (Rails 8+)
+
+```ruby
+# Rails 8 推奨: expect（構造が一致しなければ 400 を返す）
+def person_params
+  params.expect(person: [:name, :age])
+end
+```
+
+### Fat Model, Thin Controller
+
+ビジネスロジックはモデル（+ Concerns）に配置。コントローラはリクエスト処理に専念。
+
+## Models — Concerns (DHH Way)
+
+DHH: 「Concerns で太ったモデルをダイエットさせる」
+
+```ruby
+# app/models/concerns/taggable.rb
+module Taggable
+  extend ActiveSupport::Concern
+
+  included do
+    has_many :taggings, as: :taggable, dependent: :destroy
+    has_many :tags, through: :taggings
+  end
+
+  def tag_names
+    tags.pluck(:name)
+  end
+end
+
+# app/models/post.rb
+class Post < ApplicationRecord
+  include Taggable, Searchable, Visible
+end
+```
+
+**DHH は Service Objects に反対:** 「J2EE ルネサンスフェア」と呼び、Anemic Domain Model アンチパターンだと批判。代わりに Concerns、モデル、多数の小さな REST コントローラを推奨。
+
+## Routing
+
+### Resource Routing
+
+```ruby
+resources :photos                           # 7 RESTful routes
+resources :photos, only: [:index, :show]    # 限定
+resource :profile                           # singular (no index)
+```
+
+### Shallow Nesting（推奨 — 深いネストを避ける）
+
+```ruby
+resources :articles do
+  resources :comments, shallow: true
+end
+# Collection: /articles/:article_id/comments
+# Member:     /comments/:id
+```
+
+**Rule:** ネストは1レベルまで。それ以上は shallow nesting を使う。
+
+### Concerns（DRY）
+
+```ruby
+concern :commentable do
+  resources :comments
+end
+resources :articles, concerns: :commentable
+resources :photos, concerns: :commentable
+```
+
+## Callbacks
+
+**ライフサイクル順序 (create):** `before_validation` → `after_validation` → `before_save` → `before_create` → `after_create` → `after_save` → `after_commit`
+
+**Rules:**
+- コールバックメソッドは `private` にする
+- 外部副作用（メール送信、ジョブ投入）は `after_commit` を使う（`after_save` ではない）
+- `throw(:abort)` でチェーンを停止
+- コールバック内で `update`/`save` を呼ばない（無限ループの原因）
+
+**Rails 8+ per-transaction callbacks:**
+```ruby
+Article.transaction do |txn|
+  article.update(published: true)
+  txn.after_commit { PublishMailer.with(article: article).deliver_later }
+end
+```
+
+## Autoloading (Xavier Noria / Zeitwerk)
+
+**ファイル名は定数名と一致させる:**
+- `users_helper.rb` → `UsersHelper`
+- `html_parser.rb` → `HtmlParser`（アクロニム設定が必要なら `inflect.acronym "HTML"`）
+
+**Rules:**
+- アプリケーションコードに `require` を使わない（autoloading と reloading が壊れる）
+- イニシャライザで reloadable な定数を参照しない（`config.to_prepare` を使う）
+- reloadable なクラスオブジェクトをキャッシュしない
+- `bin/rails zeitwerk:check` で命名規約を検証する
+
+## Rails 8+ Defaults
+
+### Solid Trifecta（Redis 不要）
+
+| 従来 | Rails 8 Default |
+|------|-----------------|
+| Sidekiq + Redis | **Solid Queue** (DB-backed) |
+| Redis / Memcached | **Solid Cache** (DB-backed) |
+| Redis (Action Cable) | **Solid Cable** (DB-backed) |
+
+37signals で日次 2000万ジョブを処理した実績あり。
+
+### Deployment: Kamal
+
+```ruby
+# Kamal 2: SSH経由のDockerデプロイ、Kubernetes不要
+# Kamal Proxy: ゼロダウンタイム、自動SSL (Let's Encrypt)
+# Thruster: Nginx置き換え、X-Sendfile、アセットキャッシュ、gzip圧縮
+```
+
+### Authentication (Kasper Timm Hansen)
+
+```bash
+bin/rails generate authentication
+# User, Session モデル、メーラー、コントローラを生成
+# has_secure_password、ログインスロットリング、パスワードリセット含む
+# 基本的な認証には Devise 不要
+```
+
+### Frontend: Hotwire (No SPA)
+
+DHH: 「HTML Over The Wire」— SPA不要
+
+| コンポーネント | 役割 |
+|--------------|------|
+| **Turbo Drive** | ページ遷移をAjax化 |
+| **Turbo Frames** | ページの部分更新 |
+| **Turbo Streams** | WebSocket経由のリアルタイム更新 |
+| **Stimulus** | 最小限のJavaScript振る舞い |
+
+### Asset Pipeline: Propshaft + Import Maps
+
+- **Propshaft**: Sprockets 置き換え。ダイジェストスタンプのみ、トランスパイルなし
+- **Import Maps**: ビルドステップなしでESモジュールを読み込む
+- DHH: 「No Build が最速」
+
+### Performance (Jean Boussier / byroot)
+
+- **YJIT**: Rails 8 で Ruby 3.3+ ならデフォルト有効。15-30% のレイテンシ改善
+- **Pitchfork**: Unicorn 後継。reforking で ~30% メモリ削減
+- **プロファイリング**: 最適化の前に必ず計測する（John Hawthorn の Vernier を推奨）
+
+**byroot の警告:** 「Rails アプリは IO-bound」という思い込みは危険。YJIT の効果が示すように、多くのアプリは想定以上に CPU-bound。
+
+## Caching
+
+### Strategy（スコープ順）
+
+1. **Fragment caching**: `<% cache product do %>`
+2. **Russian doll caching**: ネストされたフラグメント + `touch: true`
+3. **Low-level caching**: `Rails.cache.fetch(key, expires_in: 12.hours) { expensive_call }`
+4. **Conditional GET**: `stale?(@product)` で HTTP 304
+
+**Anti-pattern:**
+```ruby
+# BAD: AR オブジェクトをキャッシュ
+Rails.cache.fetch("users") { User.all.to_a }
+
+# GOOD: IDをキャッシュし再クエリ
+ids = Rails.cache.fetch("user_ids") { User.pluck(:id) }
+User.where(id: ids)
+```
+
+## Security
+
+### CSRF
+
+- デフォルトで有効。レイアウトに `<%= csrf_meta_tags %>` を含める
+- GET は読み取りのみ、状態変更は POST/PATCH/DELETE
+
+### SQL Injection
+
+```ruby
+# BAD
+Model.where("name = #{params[:name]}")
+
+# GOOD
+Model.where("name = ?", params[:name])
+Model.where(name: params[:name])
+```
+
+### Authorization Pattern
+
+```ruby
+# 常に current_user でスコープ
+@project = @current_user.projects.find(params[:id])
+```
+
+### Rate Limiting (Rails 8+)
+
+```ruby
+rate_limit to: 10, within: 3.minutes, only: :create
+```
+
+### Session Security
+
+- ログイン後に `reset_session` を呼ぶ（セッション固定攻撃防止）
+- セッションには `user_id` のみ保存（複雑なオブジェクトは不可）
+
+### Regex
+
+- `\A` と `\z`（文字列境界）を使う。`^` と `$`（行境界）は使わない
+
+## API-Only Applications
+
+```bash
+rails new my_api --api
+```
+
+- `ActionController::API` を継承（軽量なミドルウェアスタック）
+- `stale?` で Conditional GET を活用
+- CORSは `rack-cors` gem で設定
+
+## Anti-Pattern Summary
+
+| Anti-Pattern | Rails Way |
+|-------------|-----------|
+| Service Objects | Concerns + Models |
+| マイクロサービス | Majestic Monolith |
+| React/Vue SPA | Hotwire (Turbo + Stimulus) |
+| Webpack/Vite | Import Maps + Propshaft |
+| Sidekiq + Redis | Solid Queue |
+| Devise (基本認証) | `bin/rails generate authentication` |
+| 深いルートネスト | Shallow nesting (1レベルまで) |
+| Fat Controller | Many thin REST-only controllers |
+| DDD / Clean Architecture | Active Record + Concerns |
+| GC チューニング（計測なし） | Vernier でプロファイリング後に判断 |
+
+---
+
+**Sources:**
+- [Rails Guides](https://guides.rubyonrails.org/)
+- [Rails Doctrine](https://rubyonrails.org/doctrine)
+- [DHH: Put Chubby Models on a Diet with Concerns](https://signalvnoise.com/posts/3372)
+- [DHH: You can't get faster than No Build](https://world.hey.com/dhh/you-can-t-get-faster-than-no-build-7a44131c)
+- [Eileen Uchitelle: Multiple Databases & Strict Loading](https://eileencodes.com/)
+- [Jean Boussier: The Mythical IO-Bound Rails App](https://byroot.github.io/ruby/performance/2025/01/23/the-mythical-io-bound-rails-app.html)
+- [Xavier Noria: Zeitwerk Autoloading Guide](https://guides.rubyonrails.org/autoloading_and_reloading_constants.html)
+- [John Hawthorn: Vernier Profiler](https://github.com/jhawthorn/vernier)
+- [Kasper Timm Hansen: Rails 8 Authentication](https://kaspth.com/)
