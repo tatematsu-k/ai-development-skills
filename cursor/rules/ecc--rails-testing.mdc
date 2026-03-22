@@ -1,0 +1,434 @@
+---
+description: "Ruby on Rails testing patterns based on official Rails testing guide, t-wada's TDD philosophy, and DHH's testing stance (Rails 8.1+: system tests dropped from generators). Covers Minitest, fixtures, integration tests, and test architecture."
+globs:
+alwaysApply: false
+---
+
+
+# Rails Testing
+
+Based on: [Rails Testing Guide](https://guides.rubyonrails.org/testing.html), [t-wada (和田卓人)](https://t-wada.hatenablog.jp/), DHH, and Rails core team.
+
+## When to Activate
+
+- Writing or reviewing Rails tests
+- Setting up test infrastructure
+- Debugging failing tests
+- Implementing TDD in a Rails project
+
+## t-wada's Testing Philosophy
+
+和田卓人（t-wada）は日本における TDD の第一人者。Kent Beck の「テスト駆動開発」翻訳者。
+
+### 質とスピード（Quality and Speed）
+
+- 内部品質（テスタビリティ、変更容易性、理解容易性）と開発速度は**トレードオフではない** — 相互に強化し合う
+- 短期的なスピードのために内部品質を犠牲にすると、技術的負債が将来の開発を遅くする
+- テストは「将来の自分への投資」
+
+### TDD の本質
+
+- TDD は「テストの手法」ではなく「設計のフィードバック手法」
+- テストを先に書くことで、API を利用者の視点から設計できる
+- 「後でテストを書く」は危険 — テストなしで書かれたコードはテストしにくい設計になる
+
+### テストピラミッド（Test Size Classification）
+
+Google のテストサイズ分類を推奨:
+
+```
+         /  Large  \      ← 少数: ブラウザ、外部API、複数サービス
+        /  Medium   \     ← 中程度: DB、ファイルシステム
+       /    Small    \    ← 大量: 単一プロセス、高速、決定的
+      ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+```
+
+- **Small（単体テスト）**: 単一プロセス内で完結。高速で決定的。最も多く書く
+- **Medium（統合テスト）**: DB やファイルシステムを使用。単一マシン内
+- **Large（E2E）**: 制約なし。ブラウザ自動化、外部サービス
+
+**アイスクリームコーンからピラミッドへ**: 最初は E2E が多くても良い。徐々にユニットテストの比率を増やしていく。
+
+### AI 時代のテスト（2025年）
+
+> 「AI コーディングエージェントの時代、自動テストは"ガードレール"として今まで以上に不可欠」
+> — t-wada, 2025
+
+AI がテストを書くバリアを下げた今こそ、テストを標準にする好機。
+
+## Rails Testing Framework
+
+### Directory Structure
+
+```
+test/
+├── models/          # Model tests (Small)
+├── controllers/     # Controller tests (Small/Medium)
+├── integration/     # Integration tests (Medium)
+├── system/          # System tests (Large) — Rails 8.1+ ではデフォルト生成されない
+├── helpers/         # Helper tests
+├── mailers/         # Mailer tests
+├── jobs/            # Job tests
+└── fixtures/        # YAML fixtures
+```
+
+### Test Base Classes
+
+| テスト種別 | 基底クラス | 用途 |
+|-----------|-----------|------|
+| Model | `ActiveSupport::TestCase` | バリデーション、スコープ、メソッド |
+| Controller | `ActionDispatch::IntegrationTest` | リクエスト/レスポンス |
+| Integration | `ActionDispatch::IntegrationTest` | 複数リクエストのフロー |
+| System | `ActionDispatch::SystemTestCase` | ブラウザ操作 |
+| Mailer | `ActionMailer::TestCase` | メール送信 |
+| Job | `ActiveJob::TestCase` | ジョブ実行 |
+
+### Basic Test Pattern
+
+```ruby
+class ArticleTest < ActiveSupport::TestCase
+  test "should not save article without title" do
+    article = Article.new
+    assert_not article.save, "Saved the article without a title"
+  end
+
+  test "should report error on empty title" do
+    article = Article.new
+    article.valid?
+    assert_includes article.errors[:title], "can't be blank"
+  end
+end
+```
+
+## Fixtures
+
+Rails 公式のテストデータ管理方法。Factory より高速。
+
+```yaml
+# test/fixtures/articles.yml
+one:
+  title: Welcome to Rails
+  body: Hello world
+  author: david  # references users fixture
+
+two:
+  title: A second article
+  body: Another body
+  author: david
+```
+
+```ruby
+# テストでの使用
+class ArticleTest < ActiveSupport::TestCase
+  test "can access fixture" do
+    article = articles(:one)
+    assert_equal "Welcome to Rails", article.title
+  end
+end
+```
+
+**ERB で動的データ:**
+```yaml
+<% 20.times do |i| %>
+user_<%= i %>:
+  name: User <%= i %>
+  email: user<%= i %>@example.com
+<% end %>
+```
+
+## Integration Tests（推奨）
+
+DHH (Rails 8.1): 「System tests は常にブリットル。Integration tests を使え」
+
+```ruby
+class ArticleFlowTest < ActionDispatch::IntegrationTest
+  test "can create an article" do
+    get new_article_path
+    assert_response :success
+
+    post articles_path, params: {
+      article: { title: "New Article", body: "Content" }
+    }
+    assert_response :redirect
+    follow_redirect!
+    assert_response :success
+    assert_dom "h1", "New Article"
+  end
+
+  test "requires authentication" do
+    get articles_path
+    assert_redirected_to login_path
+  end
+end
+```
+
+## Model Tests
+
+```ruby
+class UserTest < ActiveSupport::TestCase
+  test "should validate presence of email" do
+    user = User.new(name: "Test")
+    assert_not user.valid?
+    assert_includes user.errors[:email], "can't be blank"
+  end
+
+  test "should validate uniqueness of email" do
+    existing = users(:david)
+    user = User.new(email: existing.email)
+    assert_not user.valid?
+    assert_includes user.errors[:email], "has already been taken"
+  end
+
+  test "should calculate full name" do
+    user = users(:david)
+    assert_equal "David H.", user.full_name
+  end
+end
+```
+
+## Controller / Request Tests
+
+```ruby
+class ArticlesControllerTest < ActionDispatch::IntegrationTest
+  setup do
+    @article = articles(:one)
+    sign_in users(:david)  # ヘルパー
+  end
+
+  test "should get index" do
+    get articles_path
+    assert_response :success
+  end
+
+  test "should create article" do
+    assert_difference("Article.count") do
+      post articles_path, params: {
+        article: { title: "Test", body: "Content" }
+      }
+    end
+    assert_redirected_to article_path(Article.last)
+  end
+
+  test "should not create article with invalid params" do
+    assert_no_difference("Article.count") do
+      post articles_path, params: {
+        article: { title: "", body: "" }
+      }
+    end
+    assert_response :unprocessable_entity
+  end
+end
+```
+
+## Mailer Tests
+
+```ruby
+class UserMailerTest < ActionMailer::TestCase
+  test "welcome email" do
+    user = users(:david)
+    email = UserMailer.with(user: user).welcome_email
+
+    assert_emails 1 do
+      email.deliver_now
+    end
+
+    assert_equal ["no-reply@example.com"], email.from
+    assert_equal [user.email], email.to
+    assert_equal "Welcome", email.subject
+    assert_match "Hi #{user.name}", email.body.encoded
+  end
+end
+```
+
+**メールプレビュー:** `test/mailers/previews/` で `/rails/mailers/` にアクセスして視覚確認
+
+## Job Tests
+
+```ruby
+class CleanupJobTest < ActiveJob::TestCase
+  test "enqueues cleanup" do
+    assert_enqueued_with(job: CleanupJob) do
+      CleanupJob.perform_later
+    end
+  end
+
+  test "performs cleanup" do
+    assert_difference("OldRecord.count", -5) do
+      perform_enqueued_jobs do
+        CleanupJob.perform_later
+      end
+    end
+  end
+end
+```
+
+## System Tests（控えめに使用）
+
+DHH (Rails 8.1): 「System tests は機能しなかった。常にブリットルで、常に壊れ、常に遅い」
+
+Rails 8.1 ではジェネレータからデフォルト削除。クリティカルなユーザーフローのみに限定。
+
+```ruby
+class ArticleSystemTest < ActionDispatch::SystemTestCase
+  driven_by :selenium, using: :headless_chrome
+
+  test "visiting the index" do
+    visit articles_path
+    assert_selector "h1", text: "Articles"
+  end
+end
+```
+
+## TDD Workflow in Rails
+
+t-wada + Rails の統合アプローチ:
+
+### Step 1: User Journey を書く
+
+```
+ユーザーとして、記事を作成したい。
+そうすることで、知識を共有できる。
+```
+
+### Step 2: テストケースを先に書く（Red）
+
+```ruby
+class ArticleCreationTest < ActionDispatch::IntegrationTest
+  test "user can create article with valid params" do
+    sign_in users(:david)
+    post articles_path, params: {
+      article: { title: "TDD in Rails", body: "Content" }
+    }
+    assert_response :redirect
+    assert_equal "TDD in Rails", Article.last.title
+  end
+
+  test "user cannot create article without title" do
+    sign_in users(:david)
+    post articles_path, params: {
+      article: { title: "", body: "Content" }
+    }
+    assert_response :unprocessable_entity
+  end
+
+  test "unauthenticated user cannot create article" do
+    post articles_path, params: {
+      article: { title: "Test", body: "Content" }
+    }
+    assert_redirected_to login_path
+  end
+end
+```
+
+### Step 3: テストを実行（失敗を確認）
+
+```bash
+bin/rails test test/integration/article_creation_test.rb
+```
+
+### Step 4: 最小限の実装（Green）
+
+```ruby
+class ArticlesController < ApplicationController
+  before_action :authenticate_user!
+
+  def create
+    @article = current_user.articles.build(article_params)
+    if @article.save
+      redirect_to @article
+    else
+      render :new, status: :unprocessable_entity
+    end
+  end
+
+  private
+
+  def article_params
+    params.expect(article: [:title, :body])
+  end
+end
+```
+
+### Step 5: テスト再実行（成功を確認）
+
+```bash
+bin/rails test test/integration/article_creation_test.rb
+# All green
+```
+
+### Step 6: Refactor（テストを緑に保ちながら）
+
+## Rails-Specific Assertions
+
+```ruby
+# DOM assertions
+assert_dom "h1", "Expected Title"
+assert_dom "tr", count: 3
+
+# Response
+assert_response :success        # 200
+assert_response :redirect       # 3xx
+assert_response :not_found      # 404
+assert_redirected_to article_path(@article)
+
+# Database changes
+assert_difference("Article.count") { post articles_path, params: {...} }
+assert_no_difference("Article.count") { post articles_path, params: {...} }
+
+# Emails
+assert_emails 1 { UserMailer.welcome.deliver_now }
+assert_enqueued_emails 1 { UserMailer.welcome.deliver_later }
+
+# Jobs
+assert_enqueued_with(job: CleanupJob) { CleanupJob.perform_later }
+```
+
+## Key Commands
+
+```bash
+bin/rails test                                    # 全テスト
+bin/rails test test/models/article_test.rb        # ファイル指定
+bin/rails test test/models/article_test.rb:14     # 行番号指定
+bin/rails test -f                                 # fail-fast
+bin/rails test:system                             # system tests のみ
+bin/rails test -n /search/                        # 名前でフィルタ
+```
+
+## Anti-Patterns
+
+| Anti-Pattern | 推奨 |
+|-------------|------|
+| 「後でテストを書く」 | テストファースト (TDD) |
+| System tests を多用 | Integration tests を中心に |
+| テスト間の依存 | 各テストが独立（fixtures + transactional tests） |
+| 実装の詳細をテスト | ユーザーから見える振る舞いをテスト |
+| Factory の乱用（遅い） | Fixtures（高速、Rails標準） |
+| テストカバレッジ = テスト品質 | カバレッジは指標の一つ。振る舞いの網羅が重要 |
+| 全テストスイートを毎回実行 | 変更に影響するテストを優先 (Aaron Patterson) |
+
+## Power Assert (t-wada)
+
+t-wada が推奨するアサーション失敗時の情報表示:
+
+```ruby
+# power_assert gem
+assert do
+  user.articles.published.count == 3
+  #     |        |         |     |
+  #     |        |         2     false
+  #     |        [#<Article...>, #<Article...>]
+  #     #<User id: 1>
+end
+```
+
+失敗時に中間値が表示され、デバッグが容易になる。
+
+---
+
+**Sources:**
+- [Rails Testing Guide](https://guides.rubyonrails.org/testing.html)
+- [t-wada: 質とスピード](https://speakerdeck.com/twada/quality-and-speed-2022-spring-edition)
+- [t-wada: テストピラミッド](https://logmi.jp/tech/articles/330972)
+- [t-wada: AI時代のテスト](https://agilejourney.uzabase.com/entry/2023/11/30/103000)
+- [DHH: System tests dropped in Rails 8.1](https://prateekcodes.com/dhh-rails-world-2025-keynote-crud-monkeys/)
+- [Aaron Patterson: Test selection](https://shopify.engineering/ruby-rails-year-in-review-2022)

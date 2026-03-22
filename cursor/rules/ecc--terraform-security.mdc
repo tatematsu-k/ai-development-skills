@@ -1,0 +1,344 @@
+---
+description: "Terraform security best practices: secrets management, OIDC authentication, least privilege IAM, state encryption, ephemeral values, and policy-as-code. Based on HashiCorp guidance and AWS/GCP prescriptive guidance."
+globs:
+alwaysApply: false
+---
+
+
+# Terraform Security
+
+Based on: [HashiCorp Security Practices](https://www.hashicorp.com/en/blog/terraform-security-5-foundational-practices), [AWS Prescriptive Guidance](https://docs.aws.amazon.com/prescriptive-guidance/latest/terraform-aws-provider-best-practices/security.html), and community best practices.
+
+## When to Activate
+
+- Writing Terraform configuration with secrets or credentials
+- Configuring backends, providers, or IAM
+- Setting up CI/CD for infrastructure deployment
+- Reviewing Terraform code for security issues
+
+## Secrets Management
+
+### Rule: シークレットを `.tf` に書かない
+
+```hcl
+# CRITICAL: 絶対にやってはいけない
+provider "aws" {
+  access_key = "AKIAIOSFODNN7EXAMPLE"
+  secret_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+}
+
+variable "db_password" {
+  default = "supersecret123"  # DANGER
+}
+```
+
+### Secrets Manager Integration
+
+```hcl
+# AWS Secrets Manager
+data "aws_secretsmanager_secret_version" "db" {
+  secret_id = "prod/db/password"
+}
+
+resource "aws_db_instance" "main" {
+  password = data.aws_secretsmanager_secret_version.db.secret_string
+}
+```
+
+```hcl
+# HashiCorp Vault
+data "vault_generic_secret" "db" {
+  path = "secret/data/prod/db"
+}
+
+resource "aws_db_instance" "main" {
+  password = data.vault_generic_secret.db.data["password"]
+}
+```
+
+### Sensitive Variables
+
+```hcl
+variable "db_password" {
+  type        = string
+  description = "Database master password"
+  sensitive   = true  # plan/apply 出力で非表示
+}
+
+output "db_connection_string" {
+  value     = "postgres://admin:${var.db_password}@${aws_db_instance.main.endpoint}"
+  sensitive = true
+}
+```
+
+**注意:** `sensitive = true` は表示を抑制するが、state ファイルには平文で保存される。
+
+### Ephemeral Resources (Terraform 1.10+)
+
+State に保存されないシークレット:
+
+```hcl
+ephemeral "aws_secretsmanager_secret_version" "db_password" {
+  secret_id = "prod/db/password"
+}
+
+resource "aws_db_instance" "main" {
+  password = ephemeral.aws_secretsmanager_secret_version.db_password.secret_string
+}
+```
+
+### Write-Only Attributes (Terraform 1.11+)
+
+リソース引数が state/plan に保存されない:
+
+```hcl
+resource "aws_db_instance" "main" {
+  # write-only: state に保存されない
+  password_wo         = var.db_password
+  password_wo_version = 1  # 変更時にインクリメント
+}
+```
+
+## OIDC Authentication (CI/CD)
+
+長期間有効な credentials を排除。
+
+### GitHub Actions + AWS
+
+```yaml
+# .github/workflows/terraform.yml
+permissions:
+  id-token: write  # OIDC に必要
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/terraform-deploy
+          aws-region: ap-northeast-1
+
+      - run: terraform init
+      - run: terraform plan
+```
+
+```hcl
+# AWS 側の OIDC Provider 設定
+resource "aws_iam_openid_connect_provider" "github" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = ["ffffffffffffffffffffffffffffffffffffffff"]
+}
+
+resource "aws_iam_role" "terraform_deploy" {
+  name = "terraform-deploy"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Federated = aws_iam_openid_connect_provider.github.arn
+      }
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+        }
+        StringLike = {
+          "token.actions.githubusercontent.com:sub" = "repo:myorg/infra:*"
+        }
+      }
+    }]
+  })
+}
+```
+
+### Plan / Apply ロール分離
+
+```hcl
+# Plan 用ロール (ReadOnly)
+resource "aws_iam_role" "terraform_plan" {
+  name = "terraform-plan"
+  # ReadOnlyAccess + terraform state read
+}
+
+# Apply 用ロール (Write)
+resource "aws_iam_role" "terraform_apply" {
+  name = "terraform-apply"
+  # 最小権限の write permissions
+}
+```
+
+## State Security
+
+### 暗号化 + バージョニング + アクセス制御
+
+```hcl
+# State バケット
+resource "aws_s3_bucket" "state" {
+  bucket = "my-terraform-state"
+}
+
+resource "aws_s3_bucket_versioning" "state" {
+  bucket = aws_s3_bucket.state.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "state" {
+  bucket = aws_s3_bucket.state.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "aws:kms"
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "state" {
+  bucket                  = aws_s3_bucket.state.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+```
+
+### .gitignore（必須）
+
+```gitignore
+*.tfstate
+*.tfstate.*
+.terraform/
+crash.log
+*.tfvars    # シークレットを含む場合
+```
+
+**絶対にコミットしてはいけない:** `terraform.tfstate`, `.tfstate.backup`, credentials ファイル
+
+### OpenTofu のネイティブ State 暗号化
+
+```hcl
+# OpenTofu のみ
+terraform {
+  encryption {
+    method "aes_gcm" "default" {
+      keys = key_provider.aws_kms.default
+    }
+    state {
+      method = method.aes_gcm.default
+    }
+  }
+}
+```
+
+## Least Privilege IAM
+
+### Principles
+
+1. IAM ロール（一時的 credentials）を IAM ユーザー（長期間有効なキー）より優先
+2. `*` ワイルドカードを actions と resources で避ける
+3. Permission boundaries をセーフティネットとして使用
+4. CloudTrail / Access Analyzer で実際の使用状況を監査
+
+```hcl
+# BAD: 過剰な権限
+resource "aws_iam_policy" "terraform" {
+  policy = jsonencode({
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "*"
+      Resource = "*"
+    }]
+  })
+}
+
+# GOOD: 最小権限
+resource "aws_iam_policy" "terraform" {
+  policy = jsonencode({
+    Statement = [{
+      Effect   = "Allow"
+      Action   = [
+        "ec2:DescribeInstances",
+        "ec2:RunInstances",
+        "ec2:TerminateInstances"
+      ]
+      Resource = "arn:aws:ec2:ap-northeast-1:123456789012:instance/*"
+      Condition = {
+        StringEquals = {
+          "aws:RequestedRegion" = "ap-northeast-1"
+        }
+      }
+    }]
+  })
+}
+```
+
+## Policy as Code
+
+### Sentinel (HCP Terraform)
+
+```python
+# sentinel/restrict-instance-type.sentinel
+import "tfplan/v2" as tfplan
+
+main = rule {
+  all tfplan.resource_changes as _, rc {
+    rc.type is "aws_instance" implies
+    rc.change.after.instance_type in ["t3.micro", "t3.small", "t3.medium"]
+  }
+}
+```
+
+### OPA (Open Policy Agent)
+
+```rego
+# policy/tags.rego
+package terraform
+
+deny[msg] {
+  resource := input.resource_changes[_]
+  not resource.change.after.tags["Environment"]
+  msg := sprintf("%s must have Environment tag", [resource.address])
+}
+```
+
+## Provisioner Security
+
+```hcl
+# WARNING: local-exec はシークレット漏洩のリスク
+resource "null_resource" "example" {
+  provisioner "local-exec" {
+    command = "echo ${var.secret}"  # DANGER: ログに記録される
+  }
+}
+```
+
+**Rule:** 本番環境では `local-exec` provisioner を制限する。Policy as Code でブロック推奨。
+
+## Security Checklist
+
+- [ ] `.tf` / `.tfvars` にシークレットがハードコードされていない
+- [ ] `sensitive = true` がシークレット変数に設定されている
+- [ ] State が暗号化されたリモートバックエンドに保存されている
+- [ ] State バケットでバージョニングが有効
+- [ ] State バケットへのパブリックアクセスがブロックされている
+- [ ] `terraform.tfstate` が `.gitignore` に含まれている
+- [ ] CI/CD で OIDC 認証を使用（static keys ではない）
+- [ ] IAM ポリシーが最小権限
+- [ ] Plan/Apply で IAM ロールが分離されている
+- [ ] Checkov / Trivy がCIで実行されている
+- [ ] `local-exec` provisioner が制限されている
+- [ ] Provider バージョンが固定されている
+
+---
+
+**Sources:**
+- [HashiCorp: Terraform Security Foundational Practices](https://www.hashicorp.com/en/blog/terraform-security-5-foundational-practices)
+- [HashiCorp: Ephemeral Values](https://www.hashicorp.com/en/blog/terraform-1-10-improves-handling-secrets-in-state-with-ephemeral-values)
+- [HashiCorp: Write-Only Arguments](https://www.hashicorp.com/en/blog/terraform-1-11-ephemeral-values-managed-resources-write-only-arguments)
+- [AWS: Terraform Security Best Practices](https://docs.aws.amazon.com/prescriptive-guidance/latest/terraform-aws-provider-best-practices/security.html)
+- [Gruntwork: Comprehensive Guide to Secrets in Terraform](https://www.gruntwork.io/blog/a-comprehensive-guide-to-managing-secrets-in-your-terraform-code)
