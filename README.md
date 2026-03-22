@@ -298,6 +298,14 @@ plugins/
 | `rails-testing` | Rails テスト: Minitest, Fixtures, Integration Tests, TDD. t-wada の質とスピード + テストピラミッド + DHH の System Tests 廃止方針準拠 |
 | `rails-security` | Rails セキュリティ: CSRF, SQL Injection, XSS, Session, Credentials, Rate Limiting (Rails 8+), CSP |
 
+### Terraform/IaC
+
+| スキル | 説明 |
+|--------|------|
+| `terraform-patterns` | Terraform アーキテクチャ: モジュール設計, State 管理, for_each/count, CI/CD, Two-Repo Pattern. HashiCorp公式 + Anton Babenko (terraform-best-practices) + Yevgeniy Brikman (Gruntwork) + Nicki Watt (evolution patterns) 準拠 |
+| `terraform-testing` | Terraform テスト: Native testing (.tftest.hcl), Mocking, Checkov/Trivy/TFLint, Terratest, CI統合 |
+| `terraform-security` | Terraform セキュリティ: Secrets管理, OIDC認証, 最小権限IAM, State暗号化, Ephemeral Values (v1.10+), Write-Only Attributes (v1.11+), Policy as Code |
+
 ### バックエンド
 
 | スキル | 説明 |
@@ -361,6 +369,7 @@ plugins/
 | `loop-operator` | sonnet | 自律ループの監視・ストール検出・介入 |
 | `rails-reviewer` | sonnet | Rails コードレビュー: Rails Way 準拠、N+1検出、セキュリティ、規約チェック |
 | `rails-build-resolver` | sonnet | Rails ビルド・マイグレーション・ランタイムエラーの最小限修正 |
+| `terraform-reviewer` | sonnet | Terraform コードレビュー: HashiCorp Style Guide 準拠、セキュリティ、State管理、モジュール設計 |
 | `doc-updater` | haiku | ドキュメント・コードマップの自動更新 |
 
 ## ベースとなった手法

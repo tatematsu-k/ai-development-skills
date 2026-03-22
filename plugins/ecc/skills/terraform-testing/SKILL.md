@@ -1,0 +1,379 @@
+---
+name: terraform-testing
+description: "Terraform native testing framework (.tftest.hcl), security scanning (Checkov/Trivy/TFLint), and Terratest patterns. Covers unit tests (plan), integration tests (apply), mocking, and CI integration."
+origin: custom
+metadata:
+  filePattern:
+    - "**/*.tftest.hcl"
+    - "**/tests/**"
+    - "**/*_test.go"
+  bashPattern:
+    - "terraform test|tofu test|checkov|trivy|tflint|terratest"
+---
+
+# Terraform Testing
+
+Based on: [HashiCorp Testing Framework](https://developer.hashicorp.com/terraform/language/tests), [Gruntwork Terratest](https://terratest.gruntwork.io/), and community security scanning tools.
+
+## When to Activate
+
+- Writing or reviewing Terraform tests
+- Setting up CI pipelines for infrastructure validation
+- Configuring security scanning for IaC
+- Validating module behavior before publishing
+
+## Native Testing Framework (Terraform 1.6+)
+
+### File Structure
+
+テストファイルは `.tftest.hcl` 拡張子。プロジェクトルートまたは `tests/` ディレクトリに配置。
+
+```
+module/
+├── main.tf
+├── variables.tf
+├── outputs.tf
+├── tests/
+│   ├── basic.tftest.hcl
+│   ├── validation.tftest.hcl
+│   └── complete.tftest.hcl
+```
+
+### Unit Test (command = plan)
+
+実際のリソースを作成しない。バリデーション、計算ロジック、条件式のテストに最適。
+
+```hcl
+# tests/validation.tftest.hcl
+
+variables {
+  instance_type = "t3.micro"
+  environment   = "dev"
+}
+
+run "valid_instance_type" {
+  command = plan
+
+  assert {
+    condition     = aws_instance.web.instance_type == "t3.micro"
+    error_message = "Instance type should be t3.micro"
+  }
+}
+
+run "invalid_disk_size_rejected" {
+  command = plan
+
+  variables {
+    disk_size = -1
+  }
+
+  expect_failures = [var.disk_size]
+}
+
+run "name_tag_includes_environment" {
+  command = plan
+
+  assert {
+    condition     = aws_instance.web.tags["Environment"] == "dev"
+    error_message = "Environment tag must match variable"
+  }
+}
+```
+
+### Integration Test (command = apply)
+
+実際のリソースを作成して検証。テスト後に自動 destroy。
+
+```hcl
+# tests/complete.tftest.hcl
+
+provider "aws" {
+  region = "ap-northeast-1"
+}
+
+variables {
+  vpc_cidr     = "10.0.0.0/16"
+  environment  = "test"
+}
+
+run "create_vpc" {
+  command = apply
+
+  assert {
+    condition     = aws_vpc.this.cidr_block == "10.0.0.0/16"
+    error_message = "VPC CIDR block mismatch"
+  }
+
+  assert {
+    condition     = aws_vpc.this.tags["Environment"] == "test"
+    error_message = "Environment tag missing"
+  }
+}
+
+run "create_subnets" {
+  command = apply
+
+  assert {
+    condition     = length(aws_subnet.private) == 3
+    error_message = "Expected 3 private subnets"
+  }
+}
+```
+
+### Mocking (Terraform 1.7+)
+
+クレデンシャル不要でテスト可能。
+
+```hcl
+# tests/unit_with_mocks.tftest.hcl
+
+mock_provider "aws" {}
+
+run "test_logic_without_aws" {
+  command = plan
+
+  assert {
+    condition     = local.computed_name == "web-prod"
+    error_message = "Name computation is wrong"
+  }
+}
+
+# Override specific data source
+mock_provider "aws" {
+  override_data {
+    target = data.aws_ami.ubuntu
+    values = {
+      id = "ami-mock12345"
+    }
+  }
+}
+```
+
+### Helper Modules (Setup/Teardown)
+
+```hcl
+run "setup" {
+  module {
+    source = "./tests/setup"
+  }
+}
+
+run "test_with_setup" {
+  command = apply
+
+  variables {
+    vpc_id = run.setup.vpc_id
+  }
+
+  assert {
+    condition     = aws_instance.web.vpc_id == run.setup.vpc_id
+    error_message = "Instance not in expected VPC"
+  }
+}
+```
+
+### Parallel Execution (Terraform 1.10+)
+
+```hcl
+# terraform.tf
+terraform {
+  test {
+    parallel = true  # 独立した run ブロックを並列実行
+  }
+}
+```
+
+### Key Commands
+
+```bash
+terraform test                          # 全テスト実行
+terraform test -filter=tests/basic      # 特定テストのみ
+terraform test -verbose                 # 詳細出力
+terraform test -json                    # JSON出力（CI向け）
+```
+
+## Security Scanning
+
+### Tool Comparison
+
+| ツール | ステータス | 強み |
+|-------|----------|------|
+| **Checkov** | Active | 750+ビルトインチェック、multi-framework |
+| **Trivy** | Active (tfsec後継) | IaC+コンテナ+SBOM統合スキャン |
+| **TFLint** | Active | Lint + provider固有ルール |
+| ~~tfsec~~ | **Deprecated** | Trivy に統合済み。新プロジェクトでは使わない |
+
+### Checkov
+
+```bash
+# インストール
+pip install checkov
+
+# 実行
+checkov -d .                           # ディレクトリ全体
+checkov -f main.tf                     # 単一ファイル
+checkov -d . --framework terraform     # Terraform のみ
+checkov -d . --check CKV_AWS_18       # 特定チェックのみ
+checkov -d . --skip-check CKV_AWS_999 # 特定チェックをスキップ
+```
+
+### Trivy (tfsec 後継)
+
+```bash
+# インストール
+brew install trivy
+
+# 実行
+trivy config .                         # IaC スキャン
+trivy config --severity HIGH,CRITICAL . # 重大度フィルタ
+```
+
+### TFLint
+
+```bash
+# インストール
+brew install tflint
+
+# 設定 (.tflint.hcl)
+plugin "aws" {
+  enabled = true
+  version = "0.31.0"
+  source  = "github.com/terraform-linters/tflint-ruleset-aws"
+}
+
+rule "terraform_naming_convention" {
+  enabled = true
+}
+
+# 実行
+tflint --init
+tflint
+```
+
+### CI Pipeline Integration
+
+```yaml
+# GitHub Actions
+- name: Terraform Format Check
+  run: terraform fmt -check -recursive
+
+- name: Terraform Validate
+  run: terraform validate
+
+- name: TFLint
+  run: |
+    tflint --init
+    tflint
+
+- name: Checkov
+  run: checkov -d . --quiet --compact
+
+- name: Terraform Test
+  run: terraform test
+```
+
+## Terratest (Go)
+
+Gruntwork の Go ベースのテストフレームワーク。Native testing framework の前から存在。
+
+```go
+package test
+
+import (
+    "testing"
+    "github.com/gruntwork-io/terratest/modules/terraform"
+    "github.com/stretchr/testify/assert"
+)
+
+func TestVpc(t *testing.T) {
+    t.Parallel()
+
+    opts := &terraform.Options{
+        TerraformDir: "../examples/basic",
+        Vars: map[string]interface{}{
+            "environment": "test",
+            "vpc_cidr":    "10.0.0.0/16",
+        },
+    }
+
+    defer terraform.Destroy(t, opts)
+    terraform.InitAndApply(t, opts)
+
+    vpcId := terraform.Output(t, opts, "vpc_id")
+    assert.NotEmpty(t, vpcId)
+}
+```
+
+### Native vs Terratest
+
+| 観点 | Native (.tftest.hcl) | Terratest (Go) |
+|------|---------------------|----------------|
+| 言語 | HCL | Go |
+| セットアップ | なし（Terraform 組み込み） | Go + terratest モジュール |
+| Mocking | v1.7+ でネイティブサポート | テスト環境にデプロイ |
+| HTTP/API 検証 | 不可 | `http_helper`, `aws` モジュールで可能 |
+| 推奨用途 | モジュール検証、バリデーション | インフラ全体のE2E、外部API検証 |
+
+**推奨:** まず Native testing を使い、HTTP リクエストや外部 API の検証が必要な場合のみ Terratest を追加。
+
+## Validation Rules (variable-level)
+
+```hcl
+variable "environment" {
+  type        = string
+  description = "Deployment environment"
+
+  validation {
+    condition     = contains(["dev", "staging", "prod"], var.environment)
+    error_message = "Environment must be dev, staging, or prod."
+  }
+}
+
+variable "cidr_block" {
+  type        = string
+  description = "VPC CIDR block"
+
+  validation {
+    condition     = can(cidrhost(var.cidr_block, 0))
+    error_message = "Must be a valid CIDR block."
+  }
+}
+```
+
+## Check Blocks (Terraform 1.5+)
+
+Infrastructure の状態を検証する assertions。plan/apply 失敗にはしないが警告を出す。
+
+```hcl
+check "health_check" {
+  data "http" "api" {
+    url = "https://${aws_lb.main.dns_name}/health"
+  }
+
+  assert {
+    condition     = data.http.api.status_code == 200
+    error_message = "API health check failed"
+  }
+}
+```
+
+## Anti-Patterns
+
+| Anti-Pattern | 推奨 |
+|-------------|------|
+| テストなしでモジュールを公開 | 最低限 plan テスト + validation テスト |
+| 全テストで `command = apply` | 可能な限り `command = plan`（高速） |
+| tfsec を新規導入 | Trivy に移行済み。Checkov or Trivy を使う |
+| CI でセキュリティスキャンなし | Checkov/Trivy を pre-commit + CI に組み込み |
+| `terraform validate` のみ | validate + fmt + lint + security scan + test |
+| 本番環境で直接テスト | 専用テスト環境 or mock provider |
+
+---
+
+**Sources:**
+- [HashiCorp: Terraform Tests](https://developer.hashicorp.com/terraform/language/tests)
+- [HashiCorp: Test Mocking](https://developer.hashicorp.com/terraform/language/tests/mocking)
+- [Gruntwork: Terratest](https://terratest.gruntwork.io/)
+- [Checkov](https://www.checkov.io/)
+- [Trivy](https://trivy.dev/)
+- [TFLint](https://github.com/terraform-linters/tflint)
