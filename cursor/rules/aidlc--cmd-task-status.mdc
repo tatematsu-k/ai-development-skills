@@ -1,0 +1,10 @@
+---
+description: "Command /task-status: 現在のタスク進捗状況を表示する"
+globs:
+alwaysApply: false
+---
+
+
+**REQUIRED SKILL:** `aidlc:task-management` を使用して、現在の全タスクの進捗サマリを表示してください。
+
+対象: $ARGUMENTS (空の場合は最新のタスクリスト)

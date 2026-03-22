@@ -1,0 +1,116 @@
+---
+description: "タスク・サブタスクの管理スキル。ローカルファイルとGitHub Issueの2つのバックエンドをサポート。タスクの作成・更新・一覧表示・ステータス管理を行う。"
+globs:
+alwaysApply: false
+---
+
+
+# タスク管理 (Task Management)
+
+## Overview
+
+サブタスク(=PR単位)の管理を行う。バックエンドとしてローカルファイルまたはGitHub Issueを選択可能。
+
+## バックエンド選択
+
+初回使用時にユーザーに確認する:
+
+> タスク管理の方法を選んでください:
+> 1. **ローカルファイル** — `aidlc-docs/tasks/` にMarkdownで管理
+> 2. **GitHub Issue** — GitHub Issueとして管理 (gh CLI使用)
+
+選択結果は `aidlc-docs/tasks/config.json` に保存:
+
+```json
+{
+  "backend": "local" | "github",
+  "github_repo": "owner/repo",
+  "parent_issue": 123
+}
+```
+
+## ローカルファイル管理
+
+### タスクリストファイル
+
+`aidlc-docs/tasks/YYYY-MM-DD-<feature>-tasks.md`:
+
+```markdown
+# [機能名] タスクリスト
+
+| # | サブタスク | PR分類 | ステータス | PR |
+|---|-----------|--------|-----------|-----|
+| 1 | サーバー: API追加 | server | todo | - |
+| 2 | フロント: API利用画面 | frontend | todo | - |
+| 3 | バッチ: データ移行 | batch | todo | - |
+```
+
+### ステータス
+
+- `todo` — 未着手
+- `in_progress` — 作業中
+- `in_review` — PRレビュー待ち
+- `done` — 完了
+
+### ステータス更新
+
+タスクのステータスが変わるたびにファイルを更新し、コミットする。
+
+## GitHub Issue 管理
+
+### 親Issue作成
+
+機能全体を管理する親Issueを作成:
+
+```bash
+gh issue create \
+  --title "[Feature] <機能名>" \
+  --body "## サブタスク\n\n- [ ] #<sub1>\n- [ ] #<sub2>" \
+  --label "feature"
+```
+
+### サブタスク Issue 作成
+
+PR単位でIssueを作成:
+
+```bash
+gh issue create \
+  --title "[Subtask] <サブタスク名>" \
+  --body "Parent: #<parent_issue>\n\n## 概要\n...\n\n## 完了条件\n..." \
+  --label "subtask"
+```
+
+### ステータス更新
+
+```bash
+# 作業開始
+gh issue edit <number> --add-label "in-progress" --remove-label "todo"
+
+# PR作成時
+gh issue edit <number> --add-label "in-review" --remove-label "in-progress"
+
+# 完了時 (PRマージ後)
+gh issue close <number>
+```
+
+## タスク操作
+
+### 一覧表示
+
+**ローカル:** タスクリストファイルを読んで表示
+**GitHub:** `gh issue list --label "subtask"`
+
+### 次のタスク取得
+
+ステータスが `todo` の最初のタスクを返す。
+
+### 進捗サマリ
+
+```
+進捗: 2/5 完了 (40%)
+├── ✅ サーバー: API追加 (#PR-1)
+├── ✅ フロント: API利用画面 (#PR-2)
+├── 🔄 バッチ: データ移行 (作業中)
+├── ⬜ テスト: E2Eテスト追加
+└── ⬜ ドキュメント更新
+```

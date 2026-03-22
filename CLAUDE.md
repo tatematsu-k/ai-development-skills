@@ -1,6 +1,6 @@
 # AI Development Skills
 
-このリポジトリは Claude Code 向けの開発ワークフロースキルを2つのプラグインとして提供します。
+このリポジトリは Claude Code / Cursor 向けの開発ワークフロースキルを2つのプラグインとして提供します。
 
 ## プラグイン
 

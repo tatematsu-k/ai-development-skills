@@ -1,6 +1,8 @@
-# AI Development Skills for Claude Code
+# AI Development Skills
 
-AI-DLC (AI-Driven Development Life Cycle) と [Everything Claude Code](https://github.com/affaan-m/everything-claude-code) を組み合わせた、Claude Code 向けの開発ワークフロースキル集です。
+AI-DLC (AI-Driven Development Life Cycle) と [Everything Claude Code](https://github.com/affaan-m/everything-claude-code) を組み合わせた開発ワークフロースキル集です。
+
+**対応ハーネス:** Claude Code / Cursor
 
 ## 特徴
 
@@ -25,7 +27,9 @@ AI-DLC (AI-Driven Development Life Cycle) と [Everything Claude Code](https://g
 
 ## インストール
 
-### 方法1: Claude Code プラグインとしてインストール (推奨)
+### Claude Code
+
+#### 方法1: プラグインとしてインストール (推奨)
 
 ```bash
 # Step 1: マーケットプレースを追加 (初回のみ)
@@ -36,9 +40,7 @@ AI-DLC (AI-Driven Development Life Cycle) と [Everything Claude Code](https://g
 /plugin install ecc@aidlc-skills
 ```
 
-### 方法2: 手動コピー
-
-プラグインシステムを使わず、対象プロジェクトに直接コピーする場合:
+#### 方法2: 手動コピー
 
 ```bash
 # このリポジトリをクローン
@@ -59,22 +61,96 @@ cp /tmp/ai-development-skills/plugins/ecc/agents/* /path/to/your-project/.claude
 cat /tmp/ai-development-skills/CLAUDE.md >> /path/to/your-project/CLAUDE.md
 ```
 
-### アンインストール
+#### アンインストール (プラグイン)
 
 ```bash
 /plugin uninstall aidlc
 /plugin uninstall ecc
 ```
 
-### インストール確認
-
-対象プロジェクトで Claude Code を起動し、以下を実行:
+#### 確認
 
 ```
 /aidlc
 ```
 
 「要件定義フェーズを開始します」と応答されれば正常にインストールされています。
+
+### Cursor
+
+スキル・コマンド・エージェントを Cursor の `.cursor/rules/` 形式 (`.mdc`) に変換して利用できます。
+
+#### 方法1: インストールスクリプト (推奨)
+
+```bash
+# このリポジトリをクローン
+git clone https://github.com/tatematsu-k/ai-development-skills.git /tmp/ai-development-skills
+
+# 対象プロジェクトにルールをインストール
+bash /tmp/ai-development-skills/scripts/install-cursor-rules.sh /path/to/your-project
+
+# 特定プラグインのみインストールする場合
+bash /tmp/ai-development-skills/scripts/install-cursor-rules.sh --plugin=aidlc /path/to/your-project
+bash /tmp/ai-development-skills/scripts/install-cursor-rules.sh --plugin=ecc /path/to/your-project
+
+# シンボリックリンクで常に最新を参照する場合
+bash /tmp/ai-development-skills/scripts/install-cursor-rules.sh --symlink /path/to/your-project
+```
+
+#### 方法2: 手動コピー
+
+```bash
+git clone https://github.com/tatematsu-k/ai-development-skills.git /tmp/ai-development-skills
+mkdir -p /path/to/your-project/.cursor/rules
+cp /tmp/ai-development-skills/cursor/rules/*.mdc /path/to/your-project/.cursor/rules/
+```
+
+#### ルールのカスタマイズ
+
+インストール後、各 `.mdc` ファイルのフロントマターを編集して挙動を調整できます:
+
+```yaml
+---
+description: "ルールの説明 (Cursorが自動判定に使用)"
+globs: "**/*.ts"          # 特定ファイルパターンに限定
+alwaysApply: true         # 常に適用 (デフォルト: false)
+---
+```
+
+| フィールド | 説明 |
+|-----------|------|
+| `description` | ルールの適用条件の説明。Cursor が会話の文脈に基づいて自動適用を判定する |
+| `globs` | ファイルパターン指定。マッチするファイルを扱う際に自動で適用される |
+| `alwaysApply` | `true` にすると全ての会話で常に適用される |
+
+#### ルールの再生成
+
+元のスキル定義を変更した場合、`.mdc` ファイルを再生成できます:
+
+```bash
+bash scripts/generate-cursor-rules.sh
+```
+
+#### アンインストール
+
+```bash
+rm /path/to/your-project/.cursor/rules/aidlc--*.mdc
+rm /path/to/your-project/.cursor/rules/ecc--*.mdc
+```
+
+#### Cursor での制約事項
+
+Claude Code と Cursor では利用可能な機能に差異があります:
+
+| 機能 | Claude Code | Cursor |
+|------|:-----------:|:------:|
+| スキル (開発パターン・ガイドライン) | ✅ | ✅ |
+| コマンド (ワークフロー指示) | ✅ `/command` | ✅ ルールとして参照 |
+| エージェント (専門レビュアー) | ✅ 自動起動 | ✅ ルールとして参照 |
+| フック (PreToolUse/PostToolUse) | ✅ | ❌ 非対応 |
+| セッション管理 | ✅ | ❌ 非対応 |
+| プラグインマーケットプレース | ✅ | ❌ 非対応 |
+| モデルルーティング (opus/sonnet/haiku) | ✅ | ❌ 非対応 |
 
 ## 使い方
 
@@ -205,6 +281,13 @@ cat /tmp/ai-development-skills/CLAUDE.md >> /path/to/your-project/CLAUDE.md
 ## ディレクトリ構成
 
 ```
+cursor/
+│   └── rules/                # Cursor 用 .mdc ルール (自動生成)
+│       ├── aidlc--*.mdc
+│       └── ecc--*.mdc
+scripts/
+│   ├── generate-cursor-rules.sh   # .mdc ルール生成スクリプト
+│   └── install-cursor-rules.sh    # プロジェクトへのインストールスクリプト
 plugins/
 ├── aidlc/                    # AI-DLC ワークフロー
 │   ├── .claude-plugin/
