@@ -14,11 +14,13 @@
 | `aidlc:pr-strategy` | PR分割戦略 |
 | `aidlc:implementation` | 実装・テスト |
 | `aidlc:pr-creation` | PR作成・タスク更新 |
+| `aidlc:onboarding` | リポジトリオンボーディング・基礎ドキュメント生成 |
 
 ## コマンド
 
 - `/aidlc <やりたいこと>` — AI-DLCワークフロー開始
 - `/task-status` — タスク進捗表示
+- `/onboarding [補足情報]` — リポジトリオンボーディング・ドキュメント生成
 
 ## 重要ルール
 

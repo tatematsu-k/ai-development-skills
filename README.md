@@ -91,6 +91,20 @@ cat /tmp/ai-development-skills/CLAUDE.md >> /path/to/your-project/CLAUDE.md
    (5→6 をサブタスクの数だけ繰り返し)
 ```
 
+### リポジトリオンボーディング
+
+```
+/onboarding
+```
+
+既存リポジトリを解析し、対話を通じて以下のドキュメントを生成します:
+- `docs/service-overview.md` — サービス概要
+- `docs/features.md` — 機能概要
+- `docs/security.md` — セキュリティ概要
+- `docs/architecture.md` — アーキテクチャ概要
+- `docs/development-guide.md` — 開発者セットアップガイド
+- `CLAUDE.md` — AI開発用プロジェクト設定 (既存がある場合は確認の上更新)
+
 ### タスク進捗の確認
 
 ```
@@ -193,6 +207,7 @@ aidlc-docs/
 | `pr-strategy` | Construction | PR分割・コミットルール |
 | `implementation` | Construction | TDD実装・コミット |
 | `pr-creation` | Construction | PR作成・タスクステータス更新 |
+| `onboarding` | - | リポジトリ解析・基礎ドキュメント生成 |
 
 ## ベースとなった手法
 
