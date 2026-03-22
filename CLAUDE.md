@@ -15,12 +15,14 @@
 | `aidlc:implementation` | 実装・テスト |
 | `aidlc:pr-creation` | PR作成・タスク更新 |
 | `aidlc:onboarding` | リポジトリオンボーディング・基礎ドキュメント生成 |
+| `aidlc:security-audit` | セキュリティ監査 (OWASP Top 10 ベース) |
 
 ## コマンド
 
 - `/aidlc <やりたいこと>` — AI-DLCワークフロー開始
 - `/task-status` — タスク進捗表示
 - `/onboarding [補足情報]` — リポジトリオンボーディング・ドキュメント生成
+- `/security-audit [対象範囲]` — セキュリティ監査の実行
 
 ## 重要ルール
 
