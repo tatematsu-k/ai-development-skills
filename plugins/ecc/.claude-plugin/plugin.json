@@ -1,7 +1,7 @@
 {
   "name": "ecc",
   "description": "Everything Claude Code: Battle-tested agents, skills, hooks, and commands for software development, content creation, research, and operations. Originally from affaan-m/everything-claude-code.",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "author": {
     "name": "Affaan Mustafa",
     "url": "https://github.com/affaan-m/everything-claude-code"
