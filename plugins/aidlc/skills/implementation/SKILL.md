@@ -95,11 +95,135 @@ git diff --stat HEAD~N  # またはブランチ分岐元との比較
 2. さらなる分割を提案する
 3. または理由を説明して続行の承認を得る
 
-### Step 5: 実装完了確認
+### Step 5: PDCA 検証ループ (Evaluator-Driven)
+
+TDDサイクル完了後、ECCエージェントをevaluatorとして活用し、品質を自己解決型で高める。
+**最大3周**でループを終了する。3周しても解決しない問題はユーザーにエスカレーションする。
+
+```
+┌─────────────────────────────────────────────────┐
+│              PDCA 検証ループ                      │
+│                                                  │
+│  ┌──────┐   ┌──────┐   ┌──────┐   ┌──────┐     │
+│  │ Plan │──▶│  Do  │──▶│Check │──▶│ Act  │──┐  │
+│  └──────┘   └──────┘   └──────┘   └──────┘  │  │
+│       ▲                                      │  │
+│       └──────────────────────────────────────┘  │
+│                                                  │
+│  終了条件: 全Evaluator PASS or 3周到達           │
+└─────────────────────────────────────────────────┘
+```
+
+#### Phase 1: Plan — 検証計画
+
+現在の変更内容を分析し、どのevaluatorを実行すべきか判断する:
+
+| 条件 | 使用するECCエージェント |
+|------|------------------------|
+| 常に実行 | `build-error-resolver` (ビルド・型エラー解消) |
+| 常に実行 | `code-reviewer` (コード品質レビュー) |
+| テストファイルがある | `tdd-guide` (テストカバレッジ・品質) |
+| TypeScript/JavaScript プロジェクト | `typescript-reviewer` (型安全性・非同期) |
+| API/認証/入力処理を含む | `security-reviewer` (脆弱性検出) |
+| E2Eテストがある | `e2e-runner` (E2Eテスト実行) |
+
+> 「PDCA検証ループを開始します (ラウンド 1/3)
+> 有効なEvaluator: [evaluator一覧]」
+
+#### Phase 2: Do — ビルド & テスト実行
+
+**Agent: `build-error-resolver`** (sonnet)
+
+1. ビルド実行 (`npm run build` / フレームワークに応じたコマンド)
+2. 型チェック (`tsc --noEmit` 等)
+3. エラーがあれば `build-error-resolver` が最小限の修正で自動解決
+4. 修正内容をコミット
+
+```
+Build:  [PASS/FAIL] → FAIL なら build-error-resolver で自動修正
+Types:  [PASS/FAIL] → FAIL なら build-error-resolver で自動修正
+```
+
+**ビルド・型チェックが PASS するまでこのフェーズを繰り返す。**
+
+#### Phase 3: Check — 多角的レビュー
+
+ビルド成功後、以下のevaluatorを**並列**で実行する:
+
+**Agent: `code-reviewer`** (sonnet, read-only)
+- コード品質・メンテナビリティ・パフォーマンス
+- CRITICAL/HIGH の指摘を抽出
+
+**Agent: `tdd-guide`** (sonnet)
+- テストカバレッジ 80%+ を検証
+- エッジケースの不足を検出
+- テスト品質のチェック
+
+**Agent: `typescript-reviewer`** (sonnet, read-only) ※TS/JSプロジェクトのみ
+- 型安全性 (`any` の乱用、non-null assertion)
+- 非同期パターン (未処理のPromise、不要な直列await)
+- イディオマティックなパターン
+
+**Agent: `security-reviewer`** (sonnet) ※API/認証/入力処理時
+- OWASP Top 10 チェック
+- ハードコード秘密情報
+- インジェクション脆弱性
+
+**Agent: `e2e-runner`** (sonnet) ※E2Eテスト対象時
+- クリティカルジャーニーの検証
+- フレーキーテストの検出
+
+各evaluatorの結果を集約し、レポートを出力:
+
+```
+EVALUATOR REPORT (Round N/3)
+============================
+build-error-resolver:  [PASS]
+code-reviewer:         [PASS/WARN/BLOCK] (X findings)
+tdd-guide:             [PASS/FAIL] (coverage: Y%)
+typescript-reviewer:   [PASS/WARN/BLOCK] (X findings)
+security-reviewer:     [PASS/FAIL] (X issues)
+e2e-runner:            [PASS/FAIL] (X/Y scenarios)
+
+CRITICAL issues:  N件
+HIGH issues:      N件
+AUTO-FIXABLE:     N件
+
+Verdict: [ALL PASS → Step 6 へ / ISSUES FOUND → Act フェーズへ]
+```
+
+#### Phase 4: Act — 自動修正 & 改善
+
+CRITICAL / HIGH の指摘に対して自動修正を試みる:
+
+| 指摘の種類 | 対応エージェント | 自動修正 |
+|-----------|----------------|---------|
+| ビルド・型エラー | `build-error-resolver` | ✅ 自動 |
+| テスト不足・カバレッジ不足 | `tdd-guide` | ✅ 自動 (テスト追加) |
+| セキュリティ脆弱性 | `security-reviewer` | ✅ 自動 (修正適用) |
+| コード品質 (CRITICAL) | `refactor-cleaner` | ✅ 自動 |
+| コード品質 (HIGH) | — | ⚠️ 次ラウンドで再検証 |
+| 設計上の問題 | — | ❌ ユーザーにエスカレーション |
+
+**自動修正後:**
+1. 修正内容をコミット (修正の種類ごとに分ける)
+2. **Plan フェーズに戻り**、再度検証を実行 (ラウンド +1)
+
+#### ループ終了条件
+
+- **正常終了:** 全evaluatorが PASS → Step 6 へ
+- **最大ラウンド到達 (3周):** 残存issueをレポートしてユーザーに判断を仰ぐ
+
+> 「PDCA検証ループ完了 (ラウンド N/3)
+> - 自動修正: X件 適用済み
+> - 残存issue: Y件
+> - [ALL CLEAR / ユーザー確認が必要な事項: ...]」
+
+### Step 6: 実装完了確認
 
 サブタスクの実装が完了したら:
 
-1. 全テストが通ることを確認
+1. 全テスト・全evaluatorが通ることを確認
 2. 変更内容のサマリを作成
 3. PR作成フェーズへ遷移
 
@@ -107,6 +231,7 @@ git diff --stat HEAD~N  # またはブランチ分岐元との比較
 > - 変更ファイル数: X
 > - 追加/削除行数: +Y/-Z
 > - テスト結果: ALL PASS
+> - PDCA検証: ALL EVALUATORS PASS (ラウンド N で完了)
 >
 > PR作成に進みます。」
 
@@ -115,8 +240,12 @@ git diff --stat HEAD~N  # またはブランチ分岐元との比較
 ## エラー・ブロッカー対応
 
 **テストが失敗した場合:**
-- 原因を調査し修正する
-- 修正が困難な場合はユーザーに相談する
+- PDCA検証ループ内で `tdd-guide` / `build-error-resolver` が自動修正を試みる
+- 3ラウンド以内に解決しない場合はユーザーに相談する
+
+**セキュリティ issue の場合:**
+- `security-reviewer` が自動修正を試みる
+- CRITICAL issue が自動修正できない場合は即座にユーザーにエスカレーションする
 
 **サイズ超過の場合:**
 - ユーザーに分割案を提示する
