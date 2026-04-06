@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [aidlc-v1.2.0] - 2026-04-07
+
+### aidlc v1.2.0
+
+#### Added
+- ドメインエキスパート・俯瞰レビュアーのエージェント追加と planner 統合
+- domain-expert にドメイン知識ドキュメント蓄積と自動探索を追加
+- ECC エージェントを活用した PDCA 検証ループを実装スキルに追加
+- PR description に要件定義書と設計書の内容を展開するよう変更
+
+#### Changed
+- 要件定義・設計の検証ループを複雑性ベースの段階的選定に変更
+
 ## [aidlc-v1.1.0 / ecc-v1.9.0] - 2026-03-23
 
 ### aidlc v1.1.0
