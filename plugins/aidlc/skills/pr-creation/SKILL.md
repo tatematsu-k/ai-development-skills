@@ -90,6 +90,13 @@ git push -u origin <branch-name>
 
 ### Step 3: PR作成
 
+PR作成前に、要件定義書と設計書の内容を読み込む:
+
+1. `aidlc-docs/requirements/` 配下から該当する要件定義書 (`.md`) を特定し、内容を読み込む
+2. `aidlc-docs/designs/` 配下から該当する設計書 (`.md`) を特定し、内容を読み込む
+
+**注意:** ファイルが見つからない場合は「(ドキュメントなし)」と記載する。
+
 ```bash
 gh pr create --title "<type>: <description>" --body "$(cat <<'EOF'
 ## Summary
@@ -109,6 +116,24 @@ gh pr create --title "<type>: <description>" --body "$(cat <<'EOF'
 ## Test Plan
 - [ ] ユニットテスト
 - [ ] 動作確認
+
+---
+
+<details>
+<summary>📋 要件定義書</summary>
+
+[要件定義書の内容をここに展開する]
+
+</details>
+
+<details>
+<summary>📐 設計書</summary>
+
+[設計書の内容をここに展開する]
+
+</details>
+
+---
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF
